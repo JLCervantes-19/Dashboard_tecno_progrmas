@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Programas Técnico Laborales · Bolívar</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#eef2f8; --navy:#003087; --navy-m:#1a4fa8; --navy-s:#dce7f5;
+  --red:#c8102e; --red-s:#fde8eb; --white:#fff;
+  --text:#0d1f40; --muted:#6b7fa3; --border:rgba(0,48,135,.11);
+  --glass:rgba(255,255,255,.66); --gb:rgba(255,255,255,.90);
+  --gs:0 8px 30px rgba(0,48,135,.09),0 1.5px 5px rgba(0,48,135,.05);
+  --fh:'Playfair Display',serif; --fb:'Outfit',sans-serif;
+  --sidebar:290px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--fb);min-height:100vh;overflow-x:hidden}
+.blob1,.blob2{position:fixed;border-radius:50%;pointer-events:none;z-index:0}
+.blob1{width:600px;height:600px;top:-200px;left:-200px;background:radial-gradient(circle,rgba(0,48,135,.10) 0%,transparent 68%)}
+.blob2{width:500px;height:500px;bottom:-180px;right:-180px;background:radial-gradient(circle,rgba(200,16,46,.08) 0%,transparent 68%)}
+
+/* ══ LAYOUT ══ */
+.layout{display:flex;min-height:100vh;position:relative;z-index:1}
+
+/* ══ SIDEBAR ══ */
+.sidebar{
+  width:var(--sidebar);flex-shrink:0;
+  background:rgba(255,255,255,.72);
+  backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  border-right:1.5px solid var(--gb);
+  box-shadow:4px 0 24px rgba(0,48,135,.07);
+  display:flex;flex-direction:column;
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  transition:width .3s ease,opacity .3s;
+  z-index:10;
+}
+.sidebar.collapsed{width:56px;overflow:hidden}
+.sidebar.collapsed .sb-body{opacity:0;pointer-events:none}
+.sidebar.collapsed .sb-head-text{display:none}
+
+.sb-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:20px 18px 16px;
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.sb-head-text{display:flex;flex-direction:column;gap:2px}
+.sb-head-text h2{font-family:var(--fh);font-size:.95rem;color:var(--navy);font-weight:700}
+.sb-head-text span{font-size:.65rem;color:var(--muted);letter-spacing:.04em}
+
+.toggle-btn{
+  width:32px;height:32px;border-radius:8px;
+  background:var(--navy-s);border:none;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  color:var(--navy);font-size:1rem;flex-shrink:0;
+  transition:background .2s;
+}
+.toggle-btn:hover{background:var(--navy);color:#fff}
+
+.sb-body{padding:16px 16px 24px;display:flex;flex-direction:column;gap:20px;transition:opacity .25s}
+
+/* active count banner */
+.active-banner{
+  background:var(--navy);color:#fff;
+  border-radius:10px;padding:10px 14px;
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:.72rem;font-weight:500;
+}
+.active-banner strong{font-size:1.1rem;font-weight:700}
+.reset-btn{
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.3);
+  color:#fff;font-size:.62rem;font-weight:600;
+  padding:4px 10px;border-radius:999px;cursor:pointer;letter-spacing:.06em;
+  text-transform:uppercase;transition:background .2s;font-family:var(--fb);
+}
+.reset-btn:hover{background:rgba(255,255,255,.28)}
+
+/* filter section */
+.f-sec{display:flex;flex-direction:column;gap:8px}
+.f-lbl{
+  font-size:.62rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--navy);display:flex;align-items:center;gap:6px;
+}
+.f-lbl .cnt{
+  background:var(--red);color:#fff;font-size:.55rem;
+  padding:1px 6px;border-radius:999px;font-weight:700;
+}
+
+/* pill toggles */
+.pills{display:flex;flex-wrap:wrap;gap:5px}
+.pill{
+  font-size:.64rem;font-weight:500;
+  padding:4px 10px;border-radius:999px;
+  border:1.5px solid var(--border);
+  background:var(--white);color:var(--muted);
+  cursor:pointer;transition:all .18s;user-select:none;white-space:nowrap;
+}
+.pill:hover{border-color:var(--navy-m);color:var(--navy-m)}
+.pill.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.pill.on.red{background:var(--red);border-color:var(--red)}
+
+/* checkboxes */
+.checks{display:flex;flex-direction:column;gap:6px}
+.chk-row{display:flex;align-items:center;gap:8px;cursor:pointer}
+.chk-box{
+  width:16px;height:16px;border-radius:4px;
+  border:1.5px solid var(--border);background:var(--white);
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;transition:all .18s;
+}
+.chk-row.on .chk-box{background:var(--navy);border-color:var(--navy)}
+.chk-row.on .chk-box::after{content:'✓';font-size:.55rem;color:#fff;font-weight:700}
+.chk-txt{font-size:.71rem;color:var(--muted)}
+.chk-row.on .chk-txt{color:var(--text);font-weight:500}
+.chk-count{margin-left:auto;font-size:.62rem;color:var(--muted);font-family:monospace}
+
+/* range slider */
+.range-wrap{padding:4px 0 2px}
+.range-vals{display:flex;justify-content:space-between;font-size:.65rem;color:var(--muted);margin-bottom:8px;font-family:monospace}
+.range-vals span{color:var(--navy);font-weight:600}
+.dual-range{position:relative;height:20px}
+.dual-range input[type=range]{
+  position:absolute;width:100%;height:4px;
+  -webkit-appearance:none;appearance:none;
+  background:transparent;pointer-events:none;top:50%;transform:translateY(-50%);
+}
+.dual-range input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--navy);border:2px solid var(--white);
+  box-shadow:0 1px 4px rgba(0,48,135,.3);
+  pointer-events:all;cursor:pointer;transition:background .2s;
+}
+.dual-range input[type=range]::-webkit-slider-thumb:hover{background:var(--navy-m)}
+.range-track{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:100%;height:4px;background:var(--navy-s);border-radius:99px;z-index:0;
+}
+.range-fill{
+  position:absolute;top:50%;transform:translateY(-50%);
+  height:4px;background:var(--navy);border-radius:99px;z-index:1;
+}
+
+/* search input */
+.search-input{
+  width:100%;padding:7px 10px;border-radius:8px;
+  border:1.5px solid var(--border);background:var(--white);
+  font-family:var(--fb);font-size:.72rem;color:var(--text);
+  outline:none;transition:border .18s;
+}
+.search-input:focus{border-color:var(--navy)}
+.search-input::placeholder{color:var(--muted)}
+
+/* select */
+.f-select{
+  width:100%;padding:7px 10px;border-radius:8px;
+  border:1.5px solid var(--border);background:var(--white);
+  font-family:var(--fb);font-size:.72rem;color:var(--text);
+  outline:none;cursor:pointer;
+}
+
+/* ══ MAIN ══ */
+.main{flex:1;min-width:0;padding:32px 26px 48px}
+
+/* header */
+header{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:26px;flex-wrap:wrap;gap:16px;animation:fadeUp .45s both}
+.hrule{display:flex;align-items:center;gap:16px}
+.hbar{width:5px;height:64px;border-radius:99px;background:linear-gradient(180deg,var(--navy) 0%,var(--red) 100%);flex-shrink:0}
+.ht h1{font-family:var(--fh);font-size:clamp(1.35rem,2.2vw,2rem);font-weight:700;color:var(--navy);line-height:1.18}
+.ht h1 em{font-style:normal;color:var(--red)}
+.ht p{font-size:.73rem;color:var(--muted);margin-top:4px;letter-spacing:.03em}
+.hmeta{display:flex;flex-direction:column;align-items:flex-end;gap:7px}
+.live{display:inline-flex;align-items:center;gap:7px;background:var(--navy);color:#fff;font-size:.67rem;font-weight:500;padding:6px 14px;border-radius:999px;letter-spacing:.07em;text-transform:uppercase}
+.live .dot{width:6px;height:6px;border-radius:50%;background:#6ee7b7;animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.src{font-size:.66rem;color:var(--muted);font-style:italic}
+
+/* no-results */
+.no-res{
+  display:none;text-align:center;padding:60px 20px;
+  color:var(--muted);font-size:.9rem;
+}
+.no-res.show{display:block}
+
+/* glass card */
+.glass{
+  background:var(--glass);backdrop-filter:blur(20px) saturate(170%);
+  -webkit-backdrop-filter:blur(20px) saturate(170%);
+  border:1.5px solid var(--gb);border-radius:20px;
+  box-shadow:var(--gs);padding:22px 24px;
+  transition:box-shadow .25s,transform .25s;
+}
+.glass:hover{box-shadow:0 14px 42px rgba(0,48,135,.14),0 2px 8px rgba(0,48,135,.07);transform:translateY(-2px)}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{padding:20px 20px 18px;position:relative;overflow:hidden;animation:fadeUp .5s both}
+.kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 20px 20px;background:var(--kl,var(--navy))}
+.kpi:nth-child(1){--kl:var(--navy);animation-delay:.04s}
+.kpi:nth-child(2){--kl:var(--navy-m);animation-delay:.08s}
+.kpi:nth-child(3){--kl:var(--red);animation-delay:.12s}
+.kpi:nth-child(4){--kl:#d97706;animation-delay:.16s}
+.ki{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:1rem;margin-bottom:10px;background:var(--navy-s)}
+.kl{font-size:.65rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.kv{font-family:var(--fh);font-size:2rem;font-weight:700;color:var(--kl,var(--navy));line-height:1;letter-spacing:-.02em}
+.ks{font-size:.67rem;color:var(--muted);margin-top:4px}
+
+/* grids */
+.grid{display:grid;gap:16px}
+.g3{grid-template-columns:2fr 1fr 1fr}
+.g2{grid-template-columns:1fr 1fr}
+.mb{margin-bottom:16px}
+@media(max-width:1100px){.g3,.g2{grid-template-columns:1fr}; .kpis{grid-template-columns:repeat(2,1fr)}}
+
+/* card internals */
+.ch{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.ct{font-family:var(--fh);font-size:.9rem;font-weight:600;color:var(--navy)}
+.chip{font-size:.58rem;font-weight:600;text-transform:uppercase;letter-spacing:.09em;padding:3px 9px;border-radius:999px;background:var(--navy-s);color:var(--navy);white-space:nowrap}
+.chip.r{background:var(--red-s);color:var(--red)}
+.cw{position:relative}
+.h270{height:270px}.h210{height:210px}.h190{height:190px}.h220{height:220px}
+
+/* progress */
+.plist{display:flex;flex-direction:column;gap:12px}
+.pm{display:flex;justify-content:space-between;font-size:.7rem;margin-bottom:4px;color:var(--muted)}
+.pm strong{color:var(--text);font-weight:500}
+.pt{height:6px;background:rgba(0,48,135,.08);border-radius:99px;overflow:hidden}
+.pf{height:100%;border-radius:99px;background:var(--f,var(--navy));transition:width .5s cubic-bezier(.2,.8,.2,1)}
+.div{height:1px;background:var(--border);margin:18px 0}
+
+/* legend */
+.llist{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.lrow{display:flex;align-items:center;justify-content:space-between;font-size:.71rem}
+.ll{display:flex;align-items:center;gap:7px;color:var(--muted)}
+.ld{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+.lv{font-weight:600;color:var(--text);font-size:.73rem}
+.ls{font-weight:400;color:var(--muted);font-size:.65rem}
+
+/* section label */
+.slbl{font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.13em;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.slbl::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* insights */
+.ins-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:16px}
+.ins{padding:16px 18px;animation:fadeUp .5s both}
+.ins-icon{font-size:1.2rem;margin-bottom:8px;display:block}
+.ins-lbl{font-size:.6rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:var(--navy);margin-bottom:3px}
+.ins-txt{font-size:.71rem;color:var(--muted);line-height:1.5}
+.ins-txt strong{color:var(--text);font-weight:600}
+
+/* footer */
+footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px}
+footer p{font-size:.65rem;color:var(--muted)}
+.fp{display:flex;gap:7px}
+.npill{background:var(--navy);color:#fff;font-size:.6rem;font-weight:500;padding:4px 12px;border-radius:999px;text-transform:uppercase;letter-spacing:.06em}
+.rpill{background:var(--red);color:#fff;font-size:.6rem;font-weight:500;padding:4px 12px;border-radius:999px;text-transform:uppercase;letter-spacing:.06em}
+
+@keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+
+/* scrollbar */
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-track{background:transparent}
+.sidebar::-webkit-scrollbar-thumb{background:var(--navy-s);border-radius:99px}
+
+/* tag chip on filter */
+.tag-chip{
+  display:inline-flex;align-items:center;gap:4px;
+  background:var(--navy-s);color:var(--navy);
+  font-size:.6rem;font-weight:600;
+  padding:3px 8px;border-radius:999px;
+  border:1px solid rgba(0,48,135,.15);
+}
+.tag-chip.red-tag{background:var(--red-s);color:var(--red)}
+
+/* filter bar (top active filters) */
+.fbar{
+  display:flex;flex-wrap:wrap;gap:6px;align-items:center;
+  margin-bottom:14px;min-height:28px;
+}
+.active-tag{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--navy);color:#fff;
+  font-size:.62rem;font-weight:500;
+  padding:4px 10px;border-radius:999px;cursor:pointer;
+  transition:background .18s;
+}
+.active-tag:hover{background:var(--red)}
+.active-tag .x{font-size:.7rem;opacity:.7}
+.fbar-label{font-size:.65rem;color:var(--muted);font-weight:500;letter-spacing:.04em}
+</style>
+</head>
+<body>
+<div class="blob1"></div>
+<div class="blob2"></div>
+
+<div class="layout">
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-head">
+    <div class="sb-head-text">
+      <h2>🎛 Filtros</h2>
+      <span id="sb-count">29 de 29 registros</span>
+    </div>
+    <button class="toggle-btn" id="toggleSb" title="Colapsar">‹</button>
+  </div>
+
+  <div class="sb-body" id="sbBody">
+
+    <!-- active banner -->
+    <div class="active-banner">
+      <div>
+        <div style="font-size:.62rem;opacity:.8;margin-bottom:1px">Mostrando</div>
+        <strong id="bannerCount">29</strong><span style="font-size:.72rem;opacity:.8"> / 29</span>
+      </div>
+      <button class="reset-btn" onclick="resetAll()">↺ Limpiar</button>
+    </div>
+
+    <!-- Municipio -->
+    <div class="f-sec">
+      <div class="f-lbl">📍 Municipio <span class="cnt" id="cnt-mun" style="display:none"></span></div>
+      <div class="pills" id="pills-mun"></div>
+    </div>
+
+    <!-- Área de Desempeño -->
+    <div class="f-sec">
+      <div class="f-lbl">🏷 Área de Desempeño <span class="cnt" id="cnt-area" style="display:none"></span></div>
+      <div class="checks" id="checks-area"></div>
+    </div>
+
+    <!-- Jornada -->
+    <div class="f-sec">
+      <div class="f-lbl">🕐 Jornada</div>
+      <div class="pills" id="pills-jor"></div>
+    </div>
+
+    <!-- Estado -->
+    <div class="f-sec">
+      <div class="f-lbl">🔄 Estado del Registro</div>
+      <div class="pills" id="pills-est"></div>
+    </div>
+
+    <!-- Escolaridad -->
+    <div class="f-sec">
+      <div class="f-lbl">🎓 Escolaridad Requerida <span class="cnt" id="cnt-esc" style="display:none"></span></div>
+      <div class="checks" id="checks-esc"></div>
+    </div>
+
+    <!-- Calidad -->
+    <div class="f-sec">
+      <div class="f-lbl">✅ Certificado de Calidad</div>
+      <div class="pills" id="pills-cal"></div>
+    </div>
+
+    <!-- Costo range -->
+    <div class="f-sec">
+      <div class="f-lbl">💰 Costo del Programa (COP)</div>
+      <div class="range-wrap">
+        <div class="range-vals">Desde <span id="rv-cmin">$300K</span> hasta <span id="rv-cmax">$2.9M</span></div>
+        <div class="dual-range">
+          <div class="range-track"></div>
+          <div class="range-fill" id="rf-costo"></div>
+          <input type="range" id="cmin" min="300000" max="2944580" value="300000" step="10000">
+          <input type="range" id="cmax" min="300000" max="2944580" value="2944580" step="10000">
+        </div>
+      </div>
+    </div>
+
+    <!-- Horas range -->
+    <div class="f-sec">
+      <div class="f-lbl">⏱ Duración en Horas</div>
+      <div class="range-wrap">
+        <div class="range-vals">Desde <span id="rv-hmin">600</span>h hasta <span id="rv-hmax">1.800</span>h</div>
+        <div class="dual-range">
+          <div class="range-track"></div>
+          <div class="range-fill" id="rf-horas"></div>
+          <input type="range" id="hmin" min="600" max="1800" value="600" step="10">
+          <input type="range" id="hmax" min="600" max="1800" value="1800" step="10">
+        </div>
+      </div>
+    </div>
+
+    <!-- Institución -->
+    <div class="f-sec">
+      <div class="f-lbl">🏫 Institución</div>
+      <select class="f-select" id="sel-inst">
+        <option value="">Todas las instituciones</option>
+      </select>
+    </div>
+
+  </div><!-- /sb-body -->
+</aside>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<div class="main">
+
+  <header>
+    <div class="hrule">
+      <div class="hbar"></div>
+      <div class="ht">
+        <h1>Oferta de Programas Técnico Laborales<br>Departamento de <em>Bolívar</em></h1>
+        <p>Secretaría de Educación Departamental · Análisis de oferta formativa vigente</p>
+      </div>
+    </div>
+    <div class="hmeta">
+      <div class="live"><span class="dot"></span><span id="hdr-count">29</span> programas activos</div>
+      <p class="src">Fuente: Registro institucional oficial</p>
+    </div>
+  </header>
+
+  <!-- Active filters bar -->
+  <div class="fbar" id="fbar">
+    <span class="fbar-label" id="fbar-label" style="display:none">Filtros activos:</span>
+  </div>
+
+  <!-- No results -->
+  <div class="no-res" id="noRes">😕 Ningún programa coincide con los filtros seleccionados.<br><span style="font-size:.8rem">Prueba cambiando o limpiando los filtros.</span></div>
+
+  <!-- KPIs -->
+  <div class="kpis mb" id="kpis-wrap">
+    <div class="glass kpi">
+      <div class="ki">📋</div><div class="kl">Total Programas</div>
+      <div class="kv" id="kv1">29</div><div class="ks" id="ks1">100 % con licencia activa</div>
+    </div>
+    <div class="glass kpi">
+      <div class="ki">📍</div><div class="kl">Municipios</div>
+      <div class="kv" style="color:var(--navy-m)" id="kv2">13</div><div class="ks" id="ks2">Cobertura departamental</div>
+    </div>
+    <div class="glass kpi">
+      <div class="ki" style="background:var(--red-s)">💰</div><div class="kl">Costo Promedio</div>
+      <div class="kv" id="kv3">$1.8M</div><div class="ks" id="ks3">Rango: $300K – $2.9M COP</div>
+    </div>
+    <div class="glass kpi">
+      <div class="ki" style="background:#fef3c7">⏱</div><div class="kl">Horas Promedio</div>
+      <div class="kv" style="color:#d97706" id="kv4">1.230</div><div class="ks" id="ks4">Rango: 960 – 1.400 horas</div>
+    </div>
+  </div>
+
+  <!-- ROW 1 -->
+  <p class="slbl">Distribución geográfica y administrativa</p>
+  <div class="grid g3 mb">
+    <div class="glass" style="animation:fadeUp .5s .05s both">
+      <div class="ch"><div class="ct">Programas por Municipio</div><div class="chip">Geografía</div></div>
+      <div class="cw h270"><canvas id="cMun"></canvas></div>
+    </div>
+    <div class="glass" style="animation:fadeUp .5s .1s both">
+      <div class="ch"><div class="ct">Estado del Registro</div><div class="chip">Tipo</div></div>
+      <div class="cw h190"><canvas id="cEst"></canvas></div>
+      <div class="llist">
+        <div class="lrow"><div class="ll"><div class="ld" style="background:#003087"></div>Primera vez</div><span class="lv" id="ll-pv">24 <span class="ls">(82.7%)</span></span></div>
+        <div class="lrow"><div class="ll"><div class="ld" style="background:#c8102e"></div>Renovado</div><span class="lv" id="ll-rv">5 <span class="ls">(17.3%)</span></span></div>
+      </div>
+    </div>
+    <div class="glass" style="animation:fadeUp .5s .15s both">
+      <div class="ch"><div class="ct">Jornada Académica</div><div class="chip">Horario</div></div>
+      <div class="cw h190"><canvas id="cJor"></canvas></div>
+      <div class="llist">
+        <div class="lrow"><div class="ll"><div class="ld" style="background:#1a4fa8"></div>Diurna</div><span class="lv" id="ll-di">22 <span class="ls">(75.8%)</span></span></div>
+        <div class="lrow"><div class="ll"><div class="ld" style="background:#c8102e"></div>Nocturna</div><span class="lv" id="ll-no">7 <span class="ls">(24.1%)</span></span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2 -->
+  <p class="slbl">Perfil formativo y económico</p>
+  <div class="grid g2 mb">
+    <div class="glass" style="animation:fadeUp .5s .2s both">
+      <div class="ch"><div class="ct">Área de Desempeño</div><div class="chip">Clasificación</div></div>
+      <div class="plist" id="area-bars">
+        <div><div class="pm"><span>Finanzas y Administración</span><strong id="pa1">—</strong></div><div class="pt"><div class="pf" id="pf1" style="--f:#003087;width:0%"></div></div></div>
+        <div><div class="pm"><span>Oficios, Operación y Transporte</span><strong id="pa2">—</strong></div><div class="pt"><div class="pf" id="pf2" style="--f:#1a4fa8;width:0%"></div></div></div>
+        <div><div class="pm"><span>Ventas y Servicios</span><strong id="pa3">—</strong></div><div class="pt"><div class="pf" id="pf3" style="--f:#c8102e;width:0%"></div></div></div>
+      </div>
+      <div class="div"></div>
+      <div class="ch"><div class="ct">Escolaridad Requerida</div><div class="chip r">Requisitos</div></div>
+      <div class="plist" id="esc-bars">
+        <div><div class="pm"><span>Secundaria</span><strong id="pe1">—</strong></div><div class="pt"><div class="pf" id="pfe1" style="--f:#003087;width:0%"></div></div></div>
+        <div><div class="pm"><span>Media</span><strong id="pe2">—</strong></div><div class="pt"><div class="pf" id="pfe2" style="--f:#c8102e;width:0%"></div></div></div>
+        <div><div class="pm"><span>Otro</span><strong id="pe3">—</strong></div><div class="pt"><div class="pf" id="pfe3" style="--f:#6b7fa3;width:0%"></div></div></div>
+      </div>
+    </div>
+    <div class="glass" style="animation:fadeUp .5s .25s both">
+      <div class="ch"><div class="ct">Distribución de Costos</div><div class="chip">COP</div></div>
+      <div class="cw h270"><canvas id="cCost"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ROW 3 -->
+  <p class="slbl">Análisis de correlación</p>
+  <div class="glass mb" style="animation:fadeUp .5s .3s both">
+    <div class="ch"><div class="ct">Duración en Horas vs Costo del Programa</div><div class="chip">Correlación</div></div>
+    <div class="cw h220"><canvas id="cScat"></canvas></div>
+  </div>
+
+  <!-- Insights -->
+  <p class="slbl">Hallazgos del segmento seleccionado</p>
+  <div class="ins-grid">
+    <div class="glass ins"><span class="ins-icon">🏆</span><div class="ins-lbl">Área Dominante</div><p class="ins-txt" id="ins1">—</p></div>
+    <div class="glass ins"><span class="ins-icon">📍</span><div class="ins-lbl">Top Municipio</div><p class="ins-txt" id="ins2">—</p></div>
+    <div class="glass ins"><span class="ins-icon">💰</span><div class="ins-lbl">Costo Más Económico</div><p class="ins-txt" id="ins3">—</p></div>
+    <div class="glass ins" style="border-left:3px solid var(--red)"><span class="ins-icon">⚠️</span><div class="ins-lbl" style="color:var(--red)">Certificación Calidad</div><p class="ins-txt" id="ins4">—</p></div>
+    <div class="glass ins"><span class="ins-icon">🌙</span><div class="ins-lbl">Jornada Nocturna</div><p class="ins-txt" id="ins5">—</p></div>
+    <div class="glass ins"><span class="ins-icon">📅</span><div class="ins-lbl">Registros Nuevos</div><p class="ins-txt" id="ins6">—</p></div>
+  </div>
+
+  <footer>
+    <p>Dashboard · Programas Técnico Laborales · Departamento de Bolívar</p>
+    <div class="fp"><span class="npill">Secretaría de Educación</span><span class="rpill">Análisis 2025</span></div>
+  </footer>
+
+</div><!-- /main -->
+</div><!-- /layout -->
+
+<script>
+// ══════════════════════════════════════════
+// DATA
+// ══════════════════════════════════════════
+const RAW = [
+  {id:"53161",nombre:"Técnico Laboral en Agroturismo",estado:"PRIMERA VEZ",calidad:"NO",area:"VENTAS Y SERVICIOS",jornada:"DIURNA",costo:2000000,horas:1320,escolaridad:"SECUNDARIA",municipio:"ARJONA",inst:"FUCEC"},
+  {id:"53893",nombre:"Técnico Laboral en Contabilidad e Impuestos",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2500000,horas:1350,escolaridad:"MEDIA",municipio:"ARJONA",inst:"FUCEC"},
+  {id:"53160",nombre:"Técnico Laboral en Energía Fotovoltaica",estado:"PRIMERA VEZ",calidad:"NO",area:"OFICIOS, OPERACIÓN DE EQUIPO Y TRANSPORTE",jornada:"DIURNA",costo:2000000,horas:1320,escolaridad:"SECUNDARIA",municipio:"ARJONA",inst:"FUCEC"},
+  {id:"65797",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"RENOVADO",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2944580,horas:1400,escolaridad:"OTRO",municipio:"ARJONA",inst:"CEPRODENT"},
+  {id:"46628",nombre:"Técnico Laboral Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"NOCTURNA",costo:300000,horas:1200,escolaridad:"MEDIA",municipio:"EL CARMEN DE BOLÍVAR",inst:"FEXELENCIA"},
+  {id:"64160",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"NOCTURNA",costo:1400000,horas:960,escolaridad:"SECUNDARIA",municipio:"EL CARMEN DE BOLÍVAR",inst:"FEXELENCIA"},
+  {id:"63198",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2000000,horas:1200,escolaridad:"MEDIA",municipio:"SAN JACINTO",inst:"FUNTEDCOL"},
+  {id:"65589",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"RENOVADO",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2400000,horas:1200,escolaridad:"OTRO",municipio:"EL CARMEN DE BOLÍVAR",inst:"TECNISER"},
+  {id:"65122",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"NOCTURNA",costo:2360000,horas:1080,escolaridad:"SECUNDARIA",municipio:"EL GUAMO",inst:"UNITEC"},
+  {id:"65113",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"OFICIOS, OPERACIÓN DE EQUIPO Y TRANSPORTE",jornada:"NOCTURNA",costo:1700000,horas:1200,escolaridad:"SECUNDARIA",municipio:"SAN JACINTO",inst:"UNITEC"},
+  {id:"46222",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:1200000,horas:1200,escolaridad:"SECUNDARIA",municipio:"TURBACO",inst:"CEAC"},
+  {id:"53682",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:800000,horas:1440,escolaridad:"MEDIA",municipio:"MOMPÓS",inst:"CORP. EDUCATIVA CRECER"},
+  {id:"64169",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2790000,horas:1660,escolaridad:"MEDIA",municipio:"TURBACO",inst:"CORDECOSTA"},
+  {id:"32691",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:600000,horas:1392,escolaridad:"MEDIA",municipio:"EL CARMEN DE BOLÍVAR",inst:"TECNISER"},
+  {id:"61648",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"RENOVADO",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:1200000,horas:1392,escolaridad:"SECUNDARIA",municipio:"EL CARMEN DE BOLÍVAR",inst:"TECNISER"},
+  {id:"60653",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2500000,horas:600,escolaridad:"MEDIA",municipio:"SAN JACINTO",inst:"FUNDECOR"},
+  {id:"52873",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"VENTAS Y SERVICIOS",jornada:"DIURNA",costo:1935000,horas:1400,escolaridad:"MEDIA",municipio:"TURBACO",inst:"CEPRODENT SAS"},
+  {id:"61635",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:1800000,horas:1400,escolaridad:"MEDIA",municipio:"MARÍA LA BAJA",inst:"FUNTEDCOL"},
+  {id:"63405",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:1000000,horas:800,escolaridad:"SECUNDARIA",municipio:"SANTA ROSA",inst:"EDUTEC"},
+  {id:"53097",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:1500000,horas:1040,escolaridad:"SECUNDARIA",municipio:"SAN JACINTO",inst:"MOMA"},
+  {id:"61740",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"RENOVADO",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2000000,horas:1200,escolaridad:"SECUNDARIA",municipio:"SAN JUAN NEPOMUCENO",inst:"UNDESO"},
+  {id:"52878",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"OFICIOS, OPERACIÓN DE EQUIPO Y TRANSPORTE",jornada:"DIURNA",costo:1935000,horas:1400,escolaridad:"MEDIA",municipio:"SANTA ROSA",inst:"CEPRODENT SAS"},
+  {id:"61726",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2000000,horas:1200,escolaridad:"SECUNDARIA",municipio:"CALAMAR",inst:"UNDESO"},
+  {id:"59105",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"RENOVADO",calidad:"SI",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2723606,horas:1800,escolaridad:"SECUNDARIA",municipio:"ARJONA",inst:"CARL ROS SAS"},
+  {id:"42163",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:1915000,horas:1400,escolaridad:"MEDIA",municipio:"ARJONA",inst:"CEPRODENT"},
+  {id:"64164",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"DIURNA",costo:2790000,horas:1660,escolaridad:"MEDIA",municipio:"CLEMENCIA",inst:"CORDECOSTA"},
+  {id:"65109",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"NOCTURNA",costo:2360000,horas:1080,escolaridad:"SECUNDARIA",municipio:"MAHATES",inst:"UNITEC"},
+  {id:"65119",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"NOCTURNA",costo:2360000,horas:1080,escolaridad:"SECUNDARIA",municipio:"TURBANÁ",inst:"UNITEC"},
+  {id:"56038",nombre:"Técnico Laboral en Auxiliar Administrativo",estado:"PRIMERA VEZ",calidad:"NO",area:"FINANZAS Y ADMINISTRACIÓN",jornada:"NOCTURNA",costo:1400000,horas:1400,escolaridad:"SECUNDARIA",municipio:"EL CARMEN DE BOLÍVAR",inst:"FUNTEDCOL"}
+];
+
+// ══════════════════════════════════════════
+// FILTER STATE
+// ══════════════════════════════════════════
+const state = {
+  municipios: new Set(),
+  areas: new Set(),
+  jornadas: new Set(),
+  estados: new Set(),
+  escolaridades: new Set(),
+  calidades: new Set(),
+  costoMin: 300000,  costoMax: 2944580,
+  horasMin: 600,     horasMax: 1800,
+  inst: ''
+};
+
+// ══════════════════════════════════════════
+// BUILD FILTERS
+// ══════════════════════════════════════════
+function unique(key){ return [...new Set(RAW.map(d=>d[key]))].sort(); }
+
+function buildPills(containerId, values, stateSet, colorClass='') {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  values.forEach(v => {
+    const p = document.createElement('div');
+    p.className = 'pill';
+    p.textContent = v;
+    if(colorClass) p.dataset.color = colorClass;
+    p.addEventListener('click', () => {
+      if(stateSet.has(v)){ stateSet.delete(v); p.classList.remove('on','red'); }
+      else { stateSet.add(v); p.classList.add('on'); if(colorClass) p.classList.add('red'); }
+      applyFilters();
+    });
+    el._pills = el._pills||{};
+    el._pills[v] = p;
+    el.appendChild(p);
+  });
+}
+
+function buildChecks(containerId, values, stateSet) {
+  const el = document.getElementById(containerId);
+  el.innerHTML = '';
+  values.forEach(v => {
+    const row = document.createElement('div');
+    row.className = 'chk-row';
+    row.innerHTML = `<div class="chk-box"></div><span class="chk-txt">${v}</span><span class="chk-count" data-v="${v}"></span>`;
+    row.addEventListener('click', () => {
+      if(stateSet.has(v)){ stateSet.delete(v); row.classList.remove('on'); }
+      else { stateSet.add(v); row.classList.add('on'); }
+      applyFilters();
+    });
+    row._v = v;
+    el.appendChild(row);
+  });
+}
+
+// Populate institutions
+function buildInstSelect() {
+  const sel = document.getElementById('sel-inst');
+  const insts = unique('inst');
+  insts.forEach(i => {
+    const opt = document.createElement('option');
+    opt.value = i; opt.textContent = i;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change', () => { state.inst = sel.value; applyFilters(); });
+}
+
+buildPills('pills-mun', unique('municipio'), state.municipios);
+buildChecks('checks-area', unique('area'), state.areas);
+buildPills('pills-jor', ['DIURNA','NOCTURNA'], state.jornadas);
+buildPills('pills-est', ['PRIMERA VEZ','RENOVADO'], state.estados);
+buildChecks('checks-esc', unique('escolaridad'), state.escolaridades);
+buildPills('pills-cal', ['SI','NO'], state.calidades, 'red');
+buildInstSelect();
+
+// ══════════════════════════════════════════
+// RANGE SLIDERS
+// ══════════════════════════════════════════
+function fmtCop(v){ return v>=1000000?'$'+(v/1000000).toFixed(2).replace(/\.?0+$/,'')+'M':'$'+(v/1000).toFixed(0)+'K'; }
+function fmtH(v){ return v.toLocaleString('es-CO')+'h'; }
+
+function updateRangeUI(minId, maxId, fillId, minLabel, maxLabel, fmt) {
+  const minEl=document.getElementById(minId), maxEl=document.getElementById(maxId);
+  const fill=document.getElementById(fillId);
+  const mn=parseFloat(minEl.min), mx=parseFloat(minEl.max);
+  const lo=parseFloat(minEl.value), hi=parseFloat(maxEl.value);
+  const pLo=(lo-mn)/(mx-mn)*100, pHi=(hi-mn)/(mx-mn)*100;
+  fill.style.left=pLo+'%';
+  fill.style.width=(pHi-pLo)+'%';
+  document.getElementById(minLabel).textContent=fmt(lo);
+  document.getElementById(maxLabel).textContent=fmt(hi);
+}
+
+document.getElementById('cmin').addEventListener('input',()=>{
+  if(+document.getElementById('cmin').value>+document.getElementById('cmax').value)
+    document.getElementById('cmin').value=document.getElementById('cmax').value;
+  state.costoMin=+document.getElementById('cmin').value;
+  updateRangeUI('cmin','cmax','rf-costo','rv-cmin','rv-cmax',fmtCop);
+  applyFilters();
+});
+document.getElementById('cmax').addEventListener('input',()=>{
+  if(+document.getElementById('cmax').value<+document.getElementById('cmin').value)
+    document.getElementById('cmax').value=document.getElementById('cmin').value;
+  state.costoMax=+document.getElementById('cmax').value;
+  updateRangeUI('cmin','cmax','rf-costo','rv-cmin','rv-cmax',fmtCop);
+  applyFilters();
+});
+document.getElementById('hmin').addEventListener('input',()=>{
+  if(+document.getElementById('hmin').value>+document.getElementById('hmax').value)
+    document.getElementById('hmin').value=document.getElementById('hmax').value;
+  state.horasMin=+document.getElementById('hmin').value;
+  updateRangeUI('hmin','hmax','rf-horas','rv-hmin','rv-hmax',fmtH);
+  applyFilters();
+});
+document.getElementById('hmax').addEventListener('input',()=>{
+  if(+document.getElementById('hmax').value<+document.getElementById('hmin').value)
+    document.getElementById('hmax').value=document.getElementById('hmin').value;
+  state.horasMax=+document.getElementById('hmax').value;
+  updateRangeUI('hmin','hmax','rf-horas','rv-hmin','rv-hmax',fmtH);
+  applyFilters();
+});
+updateRangeUI('cmin','cmax','rf-costo','rv-cmin','rv-cmax',fmtCop);
+updateRangeUI('hmin','hmax','rf-horas','rv-hmin','rv-hmax',fmtH);
+
+// ══════════════════════════════════════════
+// FILTER LOGIC
+// ══════════════════════════════════════════
+function getFiltered(){
+  return RAW.filter(d=>{
+    if(state.municipios.size && !state.municipios.has(d.municipio)) return false;
+    if(state.areas.size && !state.areas.has(d.area)) return false;
+    if(state.jornadas.size && !state.jornadas.has(d.jornada)) return false;
+    if(state.estados.size && !state.estados.has(d.estado)) return false;
+    if(state.escolaridades.size && !state.escolaridades.has(d.escolaridad)) return false;
+    if(state.calidades.size && !state.calidades.has(d.calidad)) return false;
+    if(d.costo<state.costoMin || d.costo>state.costoMax) return false;
+    if(d.horas<state.horasMin || d.horas>state.horasMax) return false;
+    if(state.inst && d.inst!==state.inst) return false;
+    return true;
+  });
+}
+
+function count(arr,key,val){ return arr.filter(d=>d[key]===val).length; }
+function groupCount(arr,key){ const m={}; arr.forEach(d=>{ m[d[key]]=(m[d[key]]||0)+1; }); return m; }
+
+// ══════════════════════════════════════════
+// CHARTS
+// ══════════════════════════════════════════
+const N='#003087',NM='#1a4fa8',R='#c8102e',AM='#d97706',MU='#6b7fa3';
+const BR='rgba(0,48,135,.09)';
+Chart.defaults.color=MU;
+Chart.defaults.font.family="'Outfit',sans-serif";
+Chart.defaults.font.size=11;
+
+const ALL_MUNS=['ARJONA','EL CARMEN DE BOLÍVAR','SAN JACINTO','TURBACO','SANTA ROSA',
+  'EL GUAMO','MOMPÓS','MARÍA LA BAJA','SAN JUAN NEPOMUCENO','CALAMAR','CLEMENCIA','MAHATES','TURBANÁ'];
+
+let chartMun, chartEst, chartJor, chartCost, chartScat;
+
+function initCharts(){
+  chartMun=new Chart(document.getElementById('cMun'),{
+    type:'bar',
+    data:{labels:ALL_MUNS,datasets:[{data:ALL_MUNS.map(()=>0),backgroundColor:[],borderRadius:6,borderSkipped:false}]},
+    options:{
+      indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      animation:{duration:400},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw} programa${c.raw!==1?'s':''}`}}},
+      scales:{
+        x:{grid:{color:BR},ticks:{stepSize:1},border:{color:BR}},
+        y:{grid:{display:false},border:{color:BR},ticks:{font:{size:10}}}
+      }
+    }
+  });
+
+  chartEst=new Chart(document.getElementById('cEst'),{
+    type:'doughnut',
+    data:{labels:['Primera Vez','Renovado'],datasets:[{data:[0,0],backgroundColor:[N,R],borderColor:'#fff',borderWidth:3,hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'74%',animation:{duration:400},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const t=c.dataset.data.reduce((a,b)=>a+b,0);return ` ${c.label}: ${c.raw} (${t?Math.round(c.raw/t*100):0}%)`;}}}}
+    }
+  });
+
+  chartJor=new Chart(document.getElementById('cJor'),{
+    type:'doughnut',
+    data:{labels:['Diurna','Nocturna'],datasets:[{data:[0,0],backgroundColor:[NM,R],borderColor:'#fff',borderWidth:3,hoverOffset:8}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'74%',animation:{duration:400},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const t=c.dataset.data.reduce((a,b)=>a+b,0);return ` ${c.label}: ${c.raw} (${t?Math.round(c.raw/t*100):0}%)`;}}}}
+    }
+  });
+
+  chartCost=new Chart(document.getElementById('cCost'),{
+    type:'bar',
+    data:{labels:[],datasets:[{data:[],backgroundColor:[],borderRadius:5,borderSkipped:false}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:{duration:400},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` $${c.raw.toLocaleString('es-CO')} COP`}}},
+      scales:{
+        x:{grid:{display:false},border:{color:BR},ticks:{display:false}},
+        y:{grid:{color:BR},border:{color:BR},ticks:{callback:v=>'$'+(v/1000000).toFixed(1)+'M'}}
+      }
+    }
+  });
+
+  chartScat=new Chart(document.getElementById('cScat'),{
+    type:'scatter',
+    data:{datasets:[{data:[],backgroundColor:[],borderColor:[],borderWidth:1.5,pointRadius:7,pointHoverRadius:10}]},
+    options:{
+      responsive:true,maintainAspectRatio:false,animation:{duration:400},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` ${c.raw.x}h · $${c.raw.y.toLocaleString('es-CO')} COP`}}},
+      scales:{
+        x:{title:{display:true,text:'Duración (horas)',color:MU},grid:{color:BR},border:{color:BR},min:500,max:1900},
+        y:{title:{display:true,text:'Costo (COP)',color:MU},grid:{color:BR},border:{color:BR},ticks:{callback:v=>'$'+(v/1000000).toFixed(1)+'M'}}
+      }
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+// UPDATE ALL
+// ══════════════════════════════════════════
+function applyFilters(){
+  const F = getFiltered();
+  const n = F.length;
+
+  // Show/hide no-results
+  document.getElementById('noRes').classList.toggle('show', n===0);
+  document.getElementById('kpis-wrap').style.opacity = n===0?'0.35':'1';
+
+  // Count badge
+  document.getElementById('bannerCount').textContent = n;
+  document.getElementById('sb-count').textContent = `${n} de ${RAW.length} registros`;
+  document.getElementById('hdr-count').textContent = n;
+
+  // Active filter tags bar
+  renderFilterBar();
+
+  // Update check counts in sidebar
+  document.querySelectorAll('#checks-area .chk-row').forEach(row=>{
+    const v=row._v;
+    const c=F.filter(d=>d.area===v).length;
+    row.querySelector('.chk-count').textContent=c;
+  });
+  document.querySelectorAll('#checks-esc .chk-row').forEach(row=>{
+    const v=row._v;
+    const c=F.filter(d=>d.escolaridad===v).length;
+    row.querySelector('.chk-count').textContent=c;
+  });
+
+  // ── KPIs ──
+  const costos = F.map(d=>d.costo);
+  const horas = F.map(d=>d.horas);
+  const avgCosto = costos.length ? costos.reduce((a,b)=>a+b,0)/costos.length : 0;
+  const avgHoras = horas.length ? horas.reduce((a,b)=>a+b,0)/horas.length : 0;
+  const minC=costos.length?Math.min(...costos):0, maxC=costos.length?Math.max(...costos):0;
+  const minH=horas.length?Math.min(...horas):0, maxH=horas.length?Math.max(...horas):0;
+  const uMun=new Set(F.map(d=>d.municipio)).size;
+
+  document.getElementById('kv1').textContent=n;
+  document.getElementById('ks1').textContent=n===RAW.length?'100 % con licencia activa':`de ${RAW.length} totales`;
+  document.getElementById('kv2').textContent=uMun;
+  document.getElementById('ks2').textContent=`Municipio${uMun!==1?'s':''} en segmento`;
+  document.getElementById('kv3').textContent=n?fmtCop(Math.round(avgCosto)):'—';
+  document.getElementById('ks3').textContent=n?`Rango: ${fmtCop(minC)} – ${fmtCop(maxC)} COP`:'Sin datos';
+  document.getElementById('kv4').textContent=n?Math.round(avgHoras).toLocaleString('es-CO'):'—';
+  document.getElementById('ks4').textContent=n?`Rango: ${minH.toLocaleString('es-CO')} – ${maxH.toLocaleString('es-CO')} h`:'Sin datos';
+
+  // ── Municipios chart ──
+  const munCounts = groupCount(F,'municipio');
+  chartMun.data.datasets[0].data = ALL_MUNS.map(m=>munCounts[m]||0);
+  chartMun.data.datasets[0].backgroundColor = ALL_MUNS.map(m=>{
+    const v=munCounts[m]||0;
+    if(v>=6) return N; if(v>=4) return NM; if(v>=3) return '#4472c4'; return '#a8bbdd';
+  });
+  chartMun.update();
+
+  // ── Estado ──
+  const pv=count(F,'estado','PRIMERA VEZ'), rv=count(F,'estado','RENOVADO');
+  chartEst.data.datasets[0].data=[pv,rv]; chartEst.update();
+  const pct=(v,t)=>t?Math.round(v/t*100):0;
+  document.getElementById('ll-pv').innerHTML=`${pv} <span class="ls">(${pct(pv,n)}%)</span>`;
+  document.getElementById('ll-rv').innerHTML=`${rv} <span class="ls">(${pct(rv,n)}%)</span>`;
+
+  // ── Jornada ──
+  const di=count(F,'jornada','DIURNA'), no=count(F,'jornada','NOCTURNA');
+  chartJor.data.datasets[0].data=[di,no]; chartJor.update();
+  document.getElementById('ll-di').innerHTML=`${di} <span class="ls">(${pct(di,n)}%)</span>`;
+  document.getElementById('ll-no').innerHTML=`${no} <span class="ls">(${pct(no,n)}%)</span>`;
+
+  // ── Área progress bars ──
+  const areas=['FINANZAS Y ADMINISTRACIÓN','OFICIOS, OPERACIÓN DE EQUIPO Y TRANSPORTE','VENTAS Y SERVICIOS'];
+  const acnts=areas.map(a=>count(F,'area',a));
+  const maxA=Math.max(...acnts,1);
+  ['pa1','pa2','pa3'].forEach((id,i)=>document.getElementById(id).textContent=acnts[i]);
+  ['pf1','pf2','pf3'].forEach((id,i)=>document.getElementById(id).style.width=(acnts[i]/maxA*100)+'%');
+
+  // ── Escolaridad progress bars ──
+  const escs=['SECUNDARIA','MEDIA','OTRO'];
+  const ecnts=escs.map(e=>count(F,'escolaridad',e));
+  const maxE=Math.max(...ecnts,1);
+  ['pe1','pe2','pe3'].forEach((id,i)=>document.getElementById(id).textContent=ecnts[i]);
+  ['pfe1','pfe2','pfe3'].forEach((id,i)=>document.getElementById(id).style.width=(ecnts[i]/maxE*100)+'%');
+
+  // ── Costos bar ──
+  const Fs=F.slice().sort((a,b)=>a.costo-b.costo);
+  chartCost.data.labels=Fs.map((_,i)=>`P${i+1}`);
+  chartCost.data.datasets[0].data=Fs.map(d=>d.costo);
+  chartCost.data.datasets[0].backgroundColor=Fs.map(d=>d.costo>=2500000?R:d.costo>=2000000?N:d.costo>=1500000?NM:AM);
+  chartCost.update();
+
+  // ── Scatter ──
+  chartScat.data.datasets[0].data=F.map(d=>({x:d.horas,y:d.costo,label:d.nombre}));
+  chartScat.data.datasets[0].backgroundColor=F.map(d=>d.costo>=2400000?'rgba(200,16,46,.7)':'rgba(0,48,135,.6)');
+  chartScat.data.datasets[0].borderColor=F.map(d=>d.costo>=2400000?R:N);
+  chartScat.options.plugins.tooltip.callbacks.label=c=>` ${c.raw.x}h · $${c.raw.y.toLocaleString('es-CO')} COP`;
+  chartScat.update();
+
+  // ── Insights ──
+  if(n>0){
+    const topArea=Object.entries(groupCount(F,'area')).sort((a,b)=>b[1]-a[1])[0];
+    const topMun=Object.entries(groupCount(F,'municipio')).sort((a,b)=>b[1]-a[1])[0];
+    const cheapest=Fs[0];
+    const calSI=count(F,'calidad','SI');
+    const noc=count(F,'jornada','NOCTURNA');
+    const pvCount=count(F,'estado','PRIMERA VEZ');
+
+    document.getElementById('ins1').innerHTML=`<strong>${topArea[0].split(',')[0]}</strong> domina con <strong>${topArea[1]}</strong> programa${topArea[1]!==1?'s':''} (${pct(topArea[1],n)}%).`;
+    document.getElementById('ins2').innerHTML=`<strong>${topMun[0]}</strong> tiene la mayor concentración con <strong>${topMun[1]}</strong> programa${topMun[1]!==1?'s':''}.`;
+    document.getElementById('ins3').innerHTML=`Programa más económico: <strong>${fmtCop(cheapest.costo)}</strong> – ${cheapest.municipio}.`;
+    document.getElementById('ins4').innerHTML=calSI===0?`<strong>0 de ${n}</strong> programas en este segmento tienen certificación.`:`<strong>${calSI}</strong> programa${calSI!==1?'s':''} con certificación de calidad.`;
+    document.getElementById('ins5').innerHTML=`<strong>${noc}</strong> programa${noc!==1?'s':''} (${pct(noc,n)}%) con jornada nocturna disponible.`;
+    document.getElementById('ins6').innerHTML=`<strong>${pvCount}</strong> programa${pvCount!==1?'s':''} (${pct(pvCount,n)}%) son registros de primera vez.`;
+  } else {
+    ['ins1','ins2','ins3','ins4','ins5','ins6'].forEach(id=>document.getElementById(id).textContent='Sin datos');
+  }
+
+  // Update cnt badges in sidebar labels
+  const cntMun = state.municipios.size;
+  const cntMunEl = document.getElementById('cnt-mun');
+  cntMunEl.textContent = cntMun; cntMunEl.style.display = cntMun?'inline':'none';
+
+  const cntArea = state.areas.size;
+  const cntAreaEl = document.getElementById('cnt-area');
+  cntAreaEl.textContent = cntArea; cntAreaEl.style.display = cntArea?'inline':'none';
+
+  const cntEsc = state.escolaridades.size;
+  const cntEscEl = document.getElementById('cnt-esc');
+  cntEscEl.textContent = cntEsc; cntEscEl.style.display = cntEsc?'inline':'none';
+}
+
+// ══════════════════════════════════════════
+// ACTIVE FILTER BAR (top)
+// ══════════════════════════════════════════
+function renderFilterBar(){
+  const bar = document.getElementById('fbar');
+  const lbl = document.getElementById('fbar-label');
+  const tags = [];
+
+  state.municipios.forEach(v=>tags.push({label:`📍 ${v}`,remove:()=>{ state.municipios.delete(v); syncPills('pills-mun',state.municipios); applyFilters(); }}));
+  state.areas.forEach(v=>tags.push({label:`🏷 ${v.split(',')[0]}`,remove:()=>{ state.areas.delete(v); syncChecks('checks-area',state.areas); applyFilters(); }}));
+  state.jornadas.forEach(v=>tags.push({label:`🕐 ${v}`,remove:()=>{ state.jornadas.delete(v); syncPills('pills-jor',state.jornadas); applyFilters(); }}));
+  state.estados.forEach(v=>tags.push({label:`🔄 ${v}`,remove:()=>{ state.estados.delete(v); syncPills('pills-est',state.estados); applyFilters(); }}));
+  state.escolaridades.forEach(v=>tags.push({label:`🎓 ${v}`,remove:()=>{ state.escolaridades.delete(v); syncChecks('checks-esc',state.escolaridades); applyFilters(); }}));
+  state.calidades.forEach(v=>tags.push({label:`✅ Calidad: ${v}`,remove:()=>{ state.calidades.delete(v); syncPills('pills-cal',state.calidades); applyFilters(); }}));
+  if(state.costoMin>300000||state.costoMax<2944580) tags.push({label:`💰 ${fmtCop(state.costoMin)}–${fmtCop(state.costoMax)}`,remove:()=>{ state.costoMin=300000;state.costoMax=2944580; document.getElementById('cmin').value=300000;document.getElementById('cmax').value=2944580; updateRangeUI('cmin','cmax','rf-costo','rv-cmin','rv-cmax',fmtCop); applyFilters(); }});
+  if(state.horasMin>600||state.horasMax<1800) tags.push({label:`⏱ ${state.horasMin}h–${state.horasMax}h`,remove:()=>{ state.horasMin=600;state.horasMax=1800; document.getElementById('hmin').value=600;document.getElementById('hmax').value=1800; updateRangeUI('hmin','hmax','rf-horas','rv-hmin','rv-hmax',fmtH); applyFilters(); }});
+  if(state.inst) tags.push({label:`🏫 ${state.inst}`,remove:()=>{ state.inst=''; document.getElementById('sel-inst').value=''; applyFilters(); }});
+
+  // clear old tags
+  bar.querySelectorAll('.active-tag').forEach(e=>e.remove());
+  lbl.style.display = tags.length?'inline':'none';
+
+  tags.forEach(t=>{
+    const el=document.createElement('div');
+    el.className='active-tag';
+    el.innerHTML=`${t.label} <span class="x">✕</span>`;
+    el.addEventListener('click',t.remove);
+    bar.appendChild(el);
+  });
+}
+
+function syncPills(containerId, stateSet){
+  const el=document.getElementById(containerId);
+  el.querySelectorAll('.pill').forEach(p=>{ p.classList.toggle('on',stateSet.has(p.textContent)); });
+}
+function syncChecks(containerId, stateSet){
+  const el=document.getElementById(containerId);
+  el.querySelectorAll('.chk-row').forEach(row=>{ row.classList.toggle('on',stateSet.has(row._v)); });
+}
+
+// ══════════════════════════════════════════
+// RESET
+// ══════════════════════════════════════════
+function resetAll(){
+  state.municipios.clear(); state.areas.clear();
+  state.jornadas.clear(); state.estados.clear();
+  state.escolaridades.clear(); state.calidades.clear();
+  state.costoMin=300000; state.costoMax=2944580;
+  state.horasMin=600; state.horasMax=1800;
+  state.inst='';
+  document.getElementById('cmin').value=300000; document.getElementById('cmax').value=2944580;
+  document.getElementById('hmin').value=600; document.getElementById('hmax').value=1800;
+  document.getElementById('sel-inst').value='';
+  updateRangeUI('cmin','cmax','rf-costo','rv-cmin','rv-cmax',fmtCop);
+  updateRangeUI('hmin','hmax','rf-horas','rv-hmin','rv-hmax',fmtH);
+  ['pills-mun','pills-jor','pills-est','pills-cal'].forEach(id=>document.getElementById(id).querySelectorAll('.pill').forEach(p=>p.classList.remove('on','red')));
+  ['checks-area','checks-esc'].forEach(id=>document.getElementById(id).querySelectorAll('.chk-row').forEach(r=>r.classList.remove('on')));
+  applyFilters();
+}
+
+// ══════════════════════════════════════════
+// SIDEBAR TOGGLE
+// ══════════════════════════════════════════
+document.getElementById('toggleSb').addEventListener('click',()=>{
+  const sb=document.getElementById('sidebar');
+  const isCol=sb.classList.toggle('collapsed');
+  document.getElementById('toggleSb').textContent=isCol?'›':'‹';
+  document.getElementById('toggleSb').title=isCol?'Expandir filtros':'Colapsar';
+  setTimeout(()=>{ Object.values(Chart.instances).forEach(c=>c.resize()); },320);
+});
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+initCharts();
+applyFilters();
+</script>
+</body>
+</html>
