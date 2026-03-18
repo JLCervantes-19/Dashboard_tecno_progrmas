@@ -260,6 +260,32 @@ footer p{font-size:.65rem;color:var(--muted)}
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
 
+/* programs table */
+.ptable{width:100%;border-collapse:collapse;font-size:.69rem}
+.ptable thead th{
+  position:sticky;top:0;z-index:2;
+  background:var(--navy);color:#fff;
+  font-weight:600;font-size:.61rem;text-transform:uppercase;letter-spacing:.07em;
+  padding:9px 12px;text-align:left;white-space:nowrap;
+}
+.ptable thead th:first-child{border-radius:8px 0 0 0}
+.ptable thead th:last-child{border-radius:0 8px 0 0}
+.ptable tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
+.ptable tbody tr:hover{background:var(--navy-s)}
+.ptable tbody td{padding:8px 12px;color:var(--text);vertical-align:middle;white-space:nowrap}
+.ptable tbody td.nombre-col{white-space:normal;min-width:220px;max-width:280px;font-weight:500;color:var(--navy)}
+.ptable tbody td.inst-col{color:var(--muted);font-size:.65rem}
+.ptable-wrap{overflow-x:auto;max-height:290px;overflow-y:auto;border-radius:10px}
+.ptable-wrap::-webkit-scrollbar{width:4px;height:4px}
+.ptable-wrap::-webkit-scrollbar-thumb{background:var(--navy-s);border-radius:99px}
+.pt-badge{display:inline-block;font-size:.58rem;font-weight:600;padding:2px 7px;border-radius:999px}
+.pt-badge.pv{background:var(--navy-s);color:var(--navy)}
+.pt-badge.rv{background:var(--red-s);color:var(--red)}
+.pt-badge.di{background:#e0f2fe;color:#0369a1}
+.pt-badge.no{background:#fef3c7;color:#92400e}
+.pt-badge.si{background:#dcfce7;color:#166534}
+.pt-empty{text-align:center;padding:32px;color:var(--muted);font-size:.75rem}
+
 /* scrollbar */
 .sidebar::-webkit-scrollbar{width:4px}
 .sidebar::-webkit-scrollbar-track{background:transparent}
@@ -317,6 +343,12 @@ footer p{font-size:.65rem;color:var(--muted)}
         <strong id="bannerCount">29</strong><span style="font-size:.72rem;opacity:.8"> / 29</span>
       </div>
       <button class="reset-btn" onclick="resetAll()">↺ Limpiar</button>
+    </div>
+
+    <!-- Nombre Programa -->
+    <div class="f-sec">
+      <div class="f-lbl">📚 Nombre Programa <span class="cnt" id="cnt-nom" style="display:none"></span></div>
+      <div class="checks" id="checks-nom"></div>
     </div>
 
     <!-- Municipio -->
@@ -439,6 +471,38 @@ footer p{font-size:.65rem;color:var(--muted)}
     </div>
   </div>
 
+  <!-- ROW 0 – Programs Table -->
+  <p class="slbl">Programas académicos registrados</p>
+  <div class="glass mb" style="animation:fadeUp .5s .02s both">
+    <div class="ch">
+      <div class="ct">Listado de Programas</div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="chip" id="prog-count-chip">29 programas</span>
+        <span class="chip r" style="display:none" id="prog-filter-chip">Filtrado</span>
+      </div>
+    </div>
+    <div class="ptable-wrap">
+      <table class="ptable">
+        <thead>
+          <tr>
+            <th>Nombre Programa</th>
+            <th>Institución</th>
+            <th>Municipio</th>
+            <th>Área</th>
+            <th>Jornada</th>
+            <th>Costo</th>
+            <th>Horas</th>
+            <th>Estado</th>
+            <th>Calidad</th>
+          </tr>
+        </thead>
+        <tbody id="prog-tbody">
+          <tr><td colspan="9" class="pt-empty">Cargando datos…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- ROW 1 -->
   <p class="slbl">Distribución geográfica y administrativa</p>
   <div class="grid g3 mb">
@@ -554,6 +618,7 @@ const RAW = [
 // FILTER STATE
 // ══════════════════════════════════════════
 const state = {
+  nombres: new Set(),
   municipios: new Set(),
   areas: new Set(),
   jornadas: new Set(),
@@ -618,6 +683,7 @@ function buildInstSelect() {
   sel.addEventListener('change', () => { state.inst = sel.value; applyFilters(); });
 }
 
+buildChecks('checks-nom', unique('nombre'), state.nombres);
 buildPills('pills-mun', unique('municipio'), state.municipios);
 buildChecks('checks-area', unique('area'), state.areas);
 buildPills('pills-jor', ['DIURNA','NOCTURNA'], state.jornadas);
@@ -680,6 +746,7 @@ updateRangeUI('hmin','hmax','rf-horas','rv-hmin','rv-hmax',fmtH);
 // ══════════════════════════════════════════
 function getFiltered(){
   return RAW.filter(d=>{
+    if(state.nombres.size && !state.nombres.has(d.nombre)) return false;
     if(state.municipios.size && !state.municipios.has(d.municipio)) return false;
     if(state.areas.size && !state.areas.has(d.area)) return false;
     if(state.jornadas.size && !state.jornadas.has(d.jornada)) return false;
@@ -788,6 +855,11 @@ function applyFilters(){
   renderFilterBar();
 
   // Update check counts in sidebar
+  document.querySelectorAll('#checks-nom .chk-row').forEach(row=>{
+    const v=row._v;
+    const c=F.filter(d=>d.nombre===v).length;
+    row.querySelector('.chk-count').textContent=c;
+  });
   document.querySelectorAll('#checks-area .chk-row').forEach(row=>{
     const v=row._v;
     const c=F.filter(d=>d.area===v).length;
@@ -886,6 +958,35 @@ function applyFilters(){
     ['ins1','ins2','ins3','ins4','ins5','ins6'].forEach(id=>document.getElementById(id).textContent='Sin datos');
   }
 
+  // ── Programs Table ──
+  const tbody = document.getElementById('prog-tbody');
+  const progChip = document.getElementById('prog-count-chip');
+  const filterChip = document.getElementById('prog-filter-chip');
+  progChip.textContent = `${n} programa${n!==1?'s':''}`;
+  filterChip.style.display = (getFiltered().length < RAW.length) ? 'inline-block' : 'none';
+  if(n===0){
+    tbody.innerHTML = `<tr><td colspan="9" class="pt-empty">😕 Sin programas en este segmento</td></tr>`;
+  } else {
+    const areaShort = a => a==='FINANZAS Y ADMINISTRACIÓN'?'Finanzas':a==='OFICIOS, OPERACIÓN DE EQUIPO Y TRANSPORTE'?'Oficios/Transp.':'Ventas y Serv.';
+    tbody.innerHTML = F.map(d=>`
+      <tr>
+        <td class="nombre-col">${d.nombre}</td>
+        <td class="inst-col">${d.inst}</td>
+        <td>${d.municipio}</td>
+        <td style="font-size:.63rem;color:var(--muted)">${areaShort(d.area)}</td>
+        <td><span class="pt-badge ${d.jornada==='DIURNA'?'di':'no'}">${d.jornada==='DIURNA'?'☀ Diurna':'🌙 Nocturna'}</span></td>
+        <td style="font-family:monospace;font-size:.68rem;color:var(--navy);font-weight:600">${fmtCop(d.costo)}</td>
+        <td style="font-family:monospace;font-size:.68rem">${d.horas.toLocaleString('es-CO')}h</td>
+        <td><span class="pt-badge ${d.estado==='PRIMERA VEZ'?'pv':'rv'}">${d.estado==='PRIMERA VEZ'?'Nueva':'Renovado'}</span></td>
+        <td><span class="pt-badge ${d.calidad==='SI'?'si':'pv'}">${d.calidad}</span></td>
+      </tr>`).join('');
+  }
+
+  // cnt-nom badge
+  const cntNom = state.nombres.size;
+  const cntNomEl = document.getElementById('cnt-nom');
+  cntNomEl.textContent = cntNom; cntNomEl.style.display = cntNom?'inline':'none';
+
   // Update cnt badges in sidebar labels
   const cntMun = state.municipios.size;
   const cntMunEl = document.getElementById('cnt-mun');
@@ -908,6 +1009,7 @@ function renderFilterBar(){
   const lbl = document.getElementById('fbar-label');
   const tags = [];
 
+  state.nombres.forEach(v=>tags.push({label:`📚 ${v.replace('Técnico Laboral en ','').replace('Técnico Laboral ','').slice(0,30)}`,remove:()=>{ state.nombres.delete(v); syncChecks('checks-nom',state.nombres); applyFilters(); }}));
   state.municipios.forEach(v=>tags.push({label:`📍 ${v}`,remove:()=>{ state.municipios.delete(v); syncPills('pills-mun',state.municipios); applyFilters(); }}));
   state.areas.forEach(v=>tags.push({label:`🏷 ${v.split(',')[0]}`,remove:()=>{ state.areas.delete(v); syncChecks('checks-area',state.areas); applyFilters(); }}));
   state.jornadas.forEach(v=>tags.push({label:`🕐 ${v}`,remove:()=>{ state.jornadas.delete(v); syncPills('pills-jor',state.jornadas); applyFilters(); }}));
@@ -944,6 +1046,7 @@ function syncChecks(containerId, stateSet){
 // RESET
 // ══════════════════════════════════════════
 function resetAll(){
+  state.nombres.clear();
   state.municipios.clear(); state.areas.clear();
   state.jornadas.clear(); state.estados.clear();
   state.escolaridades.clear(); state.calidades.clear();
@@ -956,7 +1059,7 @@ function resetAll(){
   updateRangeUI('cmin','cmax','rf-costo','rv-cmin','rv-cmax',fmtCop);
   updateRangeUI('hmin','hmax','rf-horas','rv-hmin','rv-hmax',fmtH);
   ['pills-mun','pills-jor','pills-est','pills-cal'].forEach(id=>document.getElementById(id).querySelectorAll('.pill').forEach(p=>p.classList.remove('on','red')));
-  ['checks-area','checks-esc'].forEach(id=>document.getElementById(id).querySelectorAll('.chk-row').forEach(r=>r.classList.remove('on')));
+  ['checks-nom','checks-area','checks-esc'].forEach(id=>document.getElementById(id).querySelectorAll('.chk-row').forEach(r=>r.classList.remove('on')));
   applyFilters();
 }
 
